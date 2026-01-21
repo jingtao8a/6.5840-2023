@@ -6,7 +6,10 @@ import (
 )
 
 func (c *Coordinator) applyForTaskHandler(send *SendMessage, reply *ReplyMessage) error {
-	switch c.phase {
+	c.mu.Lock()
+	phase := c.phase
+	c.mu.Unlock()
+	switch phase {
 	case MapPhase:
 		for _, task := range c.mapTaskList {
 			task.mu.Lock()
