@@ -68,6 +68,7 @@ func Worker(mapf func(string, string) []KeyValue, reducef func(string, []string)
 				finishReduceTask(&reply)
 			}
 		case PleaseWait:
+			fmt.Printf("wait \n")
 			time.Sleep(time.Second)
 		case PleaseQuit:
 			return

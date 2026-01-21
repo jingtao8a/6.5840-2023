@@ -103,6 +103,7 @@ func (c *Coordinator) server() {
 func (c *Coordinator) Done() bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	fmt.Printf("c.phase %d", c.phase)
 	if c.phase == FinishPhase {
 		time.Sleep(3 * time.Second)
 		return true

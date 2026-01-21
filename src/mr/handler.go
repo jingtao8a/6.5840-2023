@@ -14,7 +14,7 @@ func (c *Coordinator) applyForTaskHandler(send *SendMessage, reply *ReplyMessage
 				task.taskStatus == Execute && time.Now().After(task.expireTime) {
 				task.taskStatus = Execute
 				task.workerID = GenerateSimpleUniqueID()
-				task.expireTime = time.Now().Add(10 * time.Second)
+				task.expireTime = time.Now().Add(30 * time.Second)
 
 				reply.MessageType = AssignMapTask
 				reply.ID = task.id
@@ -35,7 +35,7 @@ func (c *Coordinator) applyForTaskHandler(send *SendMessage, reply *ReplyMessage
 				task.taskStatus == Execute && time.Now().After(task.expireTime) {
 				task.taskStatus = Execute
 				task.workerID = GenerateSimpleUniqueID()
-				task.expireTime = time.Now().Add(10 * time.Second)
+				task.expireTime = time.Now().Add(30 * time.Second)
 
 				reply.MessageType = AssignReduceTask
 				reply.ID = task.id
@@ -58,7 +58,7 @@ func (c *Coordinator) applyForTaskHandler(send *SendMessage, reply *ReplyMessage
 }
 
 func (c *Coordinator) haveFinishMapTaskHandler(send *SendMessage, reply *ReplyMessage) error {
-	if send.ID < 0 || send.ID > len(c.mapTaskList) {
+	if send.ID < 0 || send.ID >= len(c.mapTaskList) {
 		return fmt.Errorf("[Coordinator.haveFinishMapTaskHandler] wrong send.ID %v", send.ID)
 	}
 	c.mapTaskList[send.ID].mu.Lock()
@@ -91,17 +91,18 @@ func (c *Coordinator) haveFinishMapTaskHandler(send *SendMessage, reply *ReplyMe
 
 	c.mu.Lock()
 	c.phase = ReducePhase
-	c.mu.Lock()
+	c.mu.Unlock()
 	return nil
 }
 
 func (c *Coordinator) haveFinishReduceTaskHandler(send *SendMessage, reply *ReplyMessage) error {
-	if send.ID < 0 || send.ID > len(c.reduceTaskList) {
+	if send.ID < 0 || send.ID >= len(c.reduceTaskList) {
 		return fmt.Errorf("[Coordinator.haveFinishTaskHandler] wrong send.ID %v", send.ID)
 	}
 	c.reduceTaskList[send.ID].mu.Lock()
 	if c.reduceTaskList[send.ID].workerID != send.WorkerID ||
 		!(c.reduceTaskList[send.ID].taskStatus == Execute && time.Now().Before(c.reduceTaskList[send.ID].expireTime)) {
+		c.reduceTaskList[send.ID].mu.Unlock()
 		return fmt.Errorf("[Coordinator.haveFinishTaskHandler] invalid HaveFinishedReduceTask message")
 	}
 	c.reduceTaskList[send.ID].taskStatus = Finished
@@ -122,7 +123,7 @@ func (c *Coordinator) haveFinishReduceTaskHandler(send *SendMessage, reply *Repl
 }
 
 func (c *Coordinator) haveFailedMapTaskHandler(send *SendMessage, reply *ReplyMessage) error {
-	if send.ID < 0 || send.ID > len(c.mapTaskList) {
+	if send.ID < 0 || send.ID >= len(c.mapTaskList) {
 		return fmt.Errorf("[Coordinator.haveFailedMapTaskHandler] wrong send.ID %v", send.ID)
 	}
 	c.mapTaskList[send.ID].mu.Lock()
@@ -137,12 +138,13 @@ func (c *Coordinator) haveFailedMapTaskHandler(send *SendMessage, reply *ReplyMe
 }
 
 func (c *Coordinator) haveFailedReduceTaskHandler(send *SendMessage, reply *ReplyMessage) error {
-	if send.ID < 0 || send.ID > len(c.mapTaskList) {
+	if send.ID < 0 || send.ID >= len(c.reduceTaskList) {
 		return fmt.Errorf("[Coordinator.haveFailedReduceTaskHandler] wrong send.ID %v", send.ID)
 	}
 	c.reduceTaskList[send.ID].mu.Lock()
 	if c.reduceTaskList[send.ID].workerID != send.WorkerID ||
 		!(c.reduceTaskList[send.ID].taskStatus == Execute && time.Now().Before(c.reduceTaskList[send.ID].expireTime)) {
+		c.reduceTaskList[send.ID].mu.Unlock()
 		return fmt.Errorf("[Coordinator.haveFailedReduceTaskHandler] invalid HaveFailedReduceTaskHandler message")
 	}
 	c.reduceTaskList[send.ID].taskStatus = Failed
