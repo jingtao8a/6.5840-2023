@@ -14,6 +14,53 @@ import "strconv"
 // and reply for an RPC.
 //
 
+type SendMessageType int
+
+const (
+	ApplyForTask           SendMessageType = 9990
+	HaveFinishedMapTask    SendMessageType = 9991
+	HaveFinishedReduceTask SendMessageType = 9992
+	HaveFailedMapTask      SendMessageType = 9993
+	HaveFailedReduceTask   SendMessageType = 9994
+)
+
+type SendMessage struct {
+	MessageType SendMessageType
+
+	// HaveFinishedMapTask && HaveFinishedReduceTask
+	// HaveFailedMapTask && HaveFailedReduceTask
+	ID       int
+	WorkerID string
+
+	// HaveFinishedMapTask
+	ReduceID2FileName map[int]string
+}
+
+// ***************************************************
+type ReplyMessageType int
+
+const (
+	AssignMapTask    ReplyMessageType = 8880
+	AssignReduceTask ReplyMessageType = 8881
+	PleaseWait       ReplyMessageType = 8882
+	PleaseQuit       ReplyMessageType = 8883
+)
+
+type ReplyMessage struct {
+	MessageType ReplyMessageType
+
+	// AssignMapTask && AssignReduceTask
+	ID       int
+	WorkerID string
+
+	// AssignMapTask
+	Filename string
+	NReduce  int
+
+	// AssignReduceTask
+	FilenameList []string
+}
+
 type ExampleArgs struct {
 	X int
 }
@@ -23,7 +70,6 @@ type ExampleReply struct {
 }
 
 // Add your RPC definitions here.
-
 
 // Cook up a unique-ish UNIX-domain socket name
 // in /var/tmp, for the coordinator.
