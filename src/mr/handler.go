@@ -17,7 +17,7 @@ func (c *Coordinator) applyForTaskHandler(send *SendMessage, reply *ReplyMessage
 				task.taskStatus == Execute && time.Now().After(task.expireTime) {
 				task.taskStatus = Execute
 				task.workerID = GenerateSimpleUniqueID()
-				task.expireTime = time.Now().Add(30 * time.Second)
+				task.expireTime = time.Now().Add(25 * time.Second)
 
 				reply.MessageType = AssignMapTask
 				reply.ID = task.id
@@ -38,7 +38,7 @@ func (c *Coordinator) applyForTaskHandler(send *SendMessage, reply *ReplyMessage
 				task.taskStatus == Execute && time.Now().After(task.expireTime) {
 				task.taskStatus = Execute
 				task.workerID = GenerateSimpleUniqueID()
-				task.expireTime = time.Now().Add(30 * time.Second)
+				task.expireTime = time.Now().Add(25 * time.Second)
 
 				reply.MessageType = AssignReduceTask
 				reply.ID = task.id
