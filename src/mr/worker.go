@@ -1,6 +1,7 @@
 package mr
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -100,38 +101,49 @@ func doMapTask(reply *ReplyMessage, mapf func(string, string) []KeyValue) (error
 	}
 	kva := mapf(reply.Filename, string(content))
 
-	reduceID2FileSocket := make(map[int]*os.File)
-	reduceID2Encoders := make(map[int]*json.Encoder)
+	type reduceSink struct {
+		file *os.File
+		buf  *bufio.Writer
+		enc  *json.Encoder
+	}
+	reduceSinks := make([]reduceSink, reply.NReduce)
 	for _, kv := range kva {
 		reduceID := ihash(kv.Key) % reply.NReduce
-		if _, ok := reduceID2FileSocket[reduceID]; !ok {
-			reduceID2FileSocket[reduceID], err = os.CreateTemp("./", fmt.Sprintf("tmp-%d-%d-*", reply.ID, reduceID))
+		sink := &reduceSinks[reduceID]
+		if sink.file == nil {
+			sink.file, err = os.CreateTemp("./", fmt.Sprintf("tmp-%d-%d-*", reply.ID, reduceID))
 			if err != nil {
 				fmt.Printf("[doMapTask] create tempfile failed\n")
 				return fmt.Errorf("[doMapTask] create tempfile failed"), nil
 			}
+			sink.buf = bufio.NewWriter(sink.file)
+			sink.enc = json.NewEncoder(sink.buf)
 		}
-		if _, ok := reduceID2Encoders[reduceID]; !ok {
-			reduceID2Encoders[reduceID] = json.NewEncoder(reduceID2FileSocket[reduceID])
-		}
-		err = reduceID2Encoders[reduceID].Encode(&kv)
+		err = sink.enc.Encode(&kv)
 		if err != nil {
 			fmt.Printf("[doMapTask] json encode kv failed\n")
 			return fmt.Errorf("[doMapTask] json encode kv failed"), nil
 		}
 	}
 	reduceID2FileName := make(map[int]string)
-	for reduceID, fileSocket := range reduceID2FileSocket {
+	for reduceID, sink := range reduceSinks {
+		if sink.file == nil {
+			continue
+		}
+		if err = sink.buf.Flush(); err != nil {
+			fmt.Printf("[doMapTask] flush buffer failed %v\n", sink.file.Name())
+			return fmt.Errorf("[doMapTask] flush buffer failed %v", sink.file.Name()), nil
+		}
 		newName := fmt.Sprintf("mr-%d-%d", reply.ID, reduceID)
-		err = os.Rename(fileSocket.Name(), newName)
+		err = os.Rename(sink.file.Name(), newName)
 		if err != nil {
 			fmt.Printf("[doMapTask] rename temp file failed\n")
 			return fmt.Errorf("[doMapTask] rename temp file failed"), nil
 		}
-		err = fileSocket.Close()
+		err = sink.file.Close()
 		if err != nil {
-			fmt.Printf("[doMapTask] file close fail %v\n", fileSocket.Name())
-			return fmt.Errorf("[doMapTask] file close fail %v", fileSocket.Name()), nil
+			fmt.Printf("[doMapTask] file close fail %v\n", sink.file.Name())
+			return fmt.Errorf("[doMapTask] file close fail %v", sink.file.Name()), nil
 		}
 		reduceID2FileName[reduceID] = newName
 	}
