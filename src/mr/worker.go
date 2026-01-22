@@ -46,7 +46,7 @@ func Worker(mapf func(string, string) []KeyValue, reducef func(string, []string)
 		if !ok {
 			fmt.Println("[Worker] call failed")
 			retry++
-			if retry >= 5 {
+			if retry >= 3 {
 				break
 			}
 			continue
@@ -209,7 +209,12 @@ func failMapTask(reply *ReplyMessage) {
 	send.MessageType = HaveFailedMapTask
 	send.ID = reply.ID
 	send.WorkerID = reply.WorkerID
-	ok := call("Coordinator.RootHandler", &send, nil)
+	ok := call("Coordinator.RootHandler", &send, reply)
+	retry := 3
+	for !ok && retry > 0 {
+		ok = call("Coordinator.RootHandler", &send, reply)
+		retry--
+	}
 	if !ok {
 		fmt.Println("[failMapTask] call failed")
 	}
@@ -222,7 +227,12 @@ func finishMapTask(reply *ReplyMessage, reduceID2FileName map[int]string) {
 	send.WorkerID = reply.WorkerID
 	send.ReduceID2FileName = reduceID2FileName
 
-	ok := call("Coordinator.RootHandler", &send, nil)
+	ok := call("Coordinator.RootHandler", &send, reply)
+	retry := 3
+	for !ok && retry > 0 {
+		ok = call("Coordinator.RootHandler", &send, reply)
+		retry--
+	}
 	if !ok {
 		fmt.Println("[finishMapTask] call failed")
 	}
@@ -234,7 +244,12 @@ func failReduceTask(reply *ReplyMessage) {
 	send.ID = reply.ID
 	send.WorkerID = reply.WorkerID
 
-	ok := call("Coordinator.RootHandler", &send, nil)
+	ok := call("Coordinator.RootHandler", &send, reply)
+	retry := 3
+	for !ok && retry > 0 {
+		ok = call("Coordinator.RootHandler", &send, reply)
+		retry--
+	}
 	if !ok {
 		fmt.Println("[failReduceTask] call failed")
 	}
@@ -246,7 +261,12 @@ func finishReduceTask(reply *ReplyMessage) {
 	send.ID = reply.ID
 	send.WorkerID = reply.WorkerID
 
-	ok := call("Coordinator.RootHandler", &send, nil)
+	ok := call("Coordinator.RootHandler", &send, reply)
+	retry := 3
+	for !ok && retry > 0 {
+		ok = call("Coordinator.RootHandler", &send, reply)
+		retry--
+	}
 	if !ok {
 		fmt.Println("[finishReduceTask] call failed")
 	}
